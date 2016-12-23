@@ -382,6 +382,7 @@ def do_xiaoqu_chengjiao_spider(db_xq,db_cj):
     cursor.execute('select * from xiaoqu ')
     xq_list = cursor.fetchall()
     for xq in xq_list:
+        print 'spidering %s 小区' % xq[1]
         xiaoqu_chengjiao_spider(db_cj,xq[1],xq[0])
         count+=1
     print 'have spidered %d xiaoqu' % count
@@ -442,7 +443,7 @@ def exception_spider(db_cj):
 #=========================setup a database, only execute in 1st running=================================
 def database_init(dbflag='local'):
      if dbflag=='local':
-         conn = mysql.connector.connect(user='root', password='root', database='lianjiaSpider',host='localhost')
+         conn = mysql.connector.connect(user='root', password='root', database='jeesite',host='localhost')
      else:
          conn = mysql.connector.connect(user='qdm', password='password', database='qdm',host='qdm.my3w.com')
      dbc = conn.cursor()
