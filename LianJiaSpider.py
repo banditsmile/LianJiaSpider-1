@@ -13,10 +13,10 @@ reload(sys)
 sys.setdefaultencoding("utf-8")
 
 #设置代理, 让反爬虫策略失效
-proxy = {'http': '60.205.203.175:139'}
-proxy_support = urllib2.ProxyHandler(proxy)
-opener = urllib2.build_opener(proxy_support)
-urllib2.install_opener(opener)
+# proxy = {'http': '60.205.203.175:139'}
+# proxy_support = urllib2.ProxyHandler(proxy)
+# opener = urllib2.build_opener(proxy_support)
+# urllib2.install_opener(opener)
 
 
 #Some User Agents
@@ -378,6 +378,7 @@ def zengliang_chengjiao_spider(db_cj, url_page=u"http://bj.lianjia.com/chengjiao
 
     cj_list = soup.findAll('div', {'class': 'info'})
     count = 0
+    newCount = 0
     for cj in cj_list:
         count +=1
         info_dict = {}
@@ -403,9 +404,10 @@ def zengliang_chengjiao_spider(db_cj, url_page=u"http://bj.lianjia.com/chengjiao
         values = cursor.fetchall()
         if len(values) != 0:
             xiaoqubianhao = values[0][0];
+            info_dict.update({u'小区编号': xiaoqubianhao})
             #print xiaoqubianhao;
         else:
-            print u"%s 小区不存在" % xiaoquName;
+            print u"%s 小区不存在" % houseTitle;
             continue
 
         cursor.execute('select * from chengjiao where bianhao = (%s)', (bianhao[0],))
@@ -414,7 +416,8 @@ def zengliang_chengjiao_spider(db_cj, url_page=u"http://bj.lianjia.com/chengjiao
             #print u"成交房源编号存在 %s" % bianhao
             continue
 
-        print u"成交房源编号不存在 %s" % bianhao
+        # print u"成交房源编号不存在 %s" % bianhao
+        newCount +=1
 
         totalPrice = cj.find("div", {"class": "totalPrice"})  # html
         if totalPrice == None:
@@ -457,7 +460,7 @@ def zengliang_chengjiao_spider(db_cj, url_page=u"http://bj.lianjia.com/chengjiao
         # print u"房源URL %s" % url
         gen_chengjiao_insert_command(info_dict, db_cj)
 
-    print u"%s 处理了 %d 套成交房源" % (url_page,count)
+    print u"%s 处理了 %d 套成交房源, 新房源: %d套" % (url_page,count,newCount)
     return True
     
 def do_xiaoqu_chengjiao_spider(db_xq,db_cj):
@@ -474,6 +477,41 @@ def do_xiaoqu_chengjiao_spider(db_xq,db_cj):
         count+=1
     print 'have spidered %d xiaoqu' % count
     print 'done'
+
+def do_batch_detail_chengjiao_spider(db_xq):
+    """
+    批量爬取小区成交记录
+    """
+    count=0
+    cursor = db_xq.cursor()
+    cursor.execute("SELECT a.bianhao, href, a.housename FROM chengjiao a WHERE a.xiaoqubianhao = ''")
+    xq_list = cursor.fetchall()
+    for xq in xq_list:
+        print 'spidering %s ' % xq[2]
+        do_detail_spider(db_xq,xq[0],xq[2])
+        count+=1
+    print 'have spidered %d xiaoqu' % count
+    print 'done'
+
+def do_detail_spider(db_xq, bianhao, housename):
+
+
+    cursor = conn.cursor()
+    xiaoquName = housename.split(" ", 1)[0];
+    # print  xiaoquName;
+    cursor.execute("select bianhao from xiaoqu where xiaoquname = (%s)", (xiaoquName,))
+    values = cursor.fetchall()
+    if len(values) != 0:
+        xiaoqubianhao = values[0][0];
+        print xiaoqubianhao;
+    else:
+        print url_page;
+        print u"%s 小区不存在" % xiaoquName;
+        return
+
+    cursor.execute("update chengjiao set xiaoqubianhao=(%s) where  bianhao = (%s)", (xiaoqubianhao,bianhao))
+    conn.commit()
+    cursor.close()
 
 
 def exception_write(fun_name,url):
@@ -557,15 +595,23 @@ if __name__=="__main__":
     conn = database_init(dbflag)
 
     #第一步 爬下所有的小区信息
-    # for region in regions:
-    #     do_xiaoqu_spider(conn,region)
-    
-    #第二步 爬下所有小区里的成交信息
-    #do_xiaoqu_chengjiao_spider(conn,conn)
-
-
-    #有了第一步和第二部的基础数据, 日常只需增量爬最新100页成交
+    #  for region in regions:
+    #      do_xiaoqu_spider(conn,region)
+    #
+    # #第二步 爬下所有小区里的成交信息
+    # do_xiaoqu_chengjiao_spider(conn,conn)
+    #
+    #
+    # #有了第一步和第二部的基础数据, 日常只需增量爬最新100页成交
     beijing_chengjiao_spider(conn)
+
+    # do_batch_detail_chengjiao_spider(conn);
+
+    # zengliang_chengjiao_spider(conn, u'http://bj.lianjia.com/chengjiao/pg14/');
+    # zengliang_chengjiao_spider(conn, u'http://bj.lianjia.com/chengjiao/pg32/');
+    # zengliang_chengjiao_spider(conn, u'http://bj.lianjia.com/chengjiao/pg38/');
+    # zengliang_chengjiao_spider(conn, u'http://bj.lianjia.com/chengjiao/pg39/');
+    # zengliang_chengjiao_spider(conn, u'http://bj.lianjia.com/chengjiao/pg45/');
     
     #重新爬取爬取异常的链接
     # exception_spider(conn)

@@ -39,8 +39,11 @@ headers = {
 }
 
 # 获取lianjia_uuid
-req = urllib2.Request('http://bj.lianjia.com/')
-opener.open(req)
+req = urllib2.Request('http://bj.lianjia.com/chengjiao')
+result1 = opener.open(req)
+source_code = urllib2.urlopen(req,timeout=10).read()
+
+print source_code
 # 初始化表单
 req = urllib2.Request(auth_url, headers=headers)
 result = opener.open(req)
@@ -49,6 +52,8 @@ result = opener.open(req)
 # 获取cookie和lt值
 pattern = re.compile(r'JSESSIONID=(.*)')
 jsessionid = pattern.findall(result.info().getheader('Set-Cookie').split(';')[0])[0]
+
+print jsessionid
 
 html_content = result.read()
 gzipped = result.info().getheader('Content-Encoding')
