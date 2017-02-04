@@ -12,31 +12,7 @@ import sys
 reload(sys)
 sys.setdefaultencoding("utf-8")
 
-#设置代理, 让反爬虫策略失效
-proxy1 = {'http': '115.29.38.207:16816'}
-proxy_support1 = urllib2.ProxyHandler(proxy1)
-opener1 = urllib2.build_opener(proxy_support1)
-
-proxy2 = {'http': '101.203.173.104:16816'}
-proxy_support2 = urllib2.ProxyHandler(proxy2)
-opener2 = urllib2.build_opener(proxy_support2)
-
-proxy3 = {'http': '42.123.91.247:16816'}
-proxy_support3 = urllib2.ProxyHandler(proxy3)
-opener3 = urllib2.build_opener(proxy_support3)
-
-proxy4 = {'http': '118.123.22.209:16816'}
-proxy_support4 = urllib2.ProxyHandler(proxy4)
-opener4 = urllib2.build_opener(proxy_support4)
-
-proxy5 = {'http': '27.54.242.222:16816'}
-proxy_support5 = urllib2.ProxyHandler(proxy5)
-opener5 = urllib2.build_opener(proxy_support5)
-
-proxy6 = {'http': '115.28.150.197:16816'}
-proxy_support6 = urllib2.ProxyHandler(proxy6)
-opener6 = urllib2.build_opener(proxy_support6)
-
+#设置代理池, 让反爬虫策略失效
 proxys= [
 {'http': '115.29.38.207:16816'},
 {'http': '101.203.173.104:16816'},
