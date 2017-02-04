@@ -13,10 +13,22 @@ reload(sys)
 sys.setdefaultencoding("utf-8")
 
 #设置代理, 让反爬虫策略失效
-# proxy = {'http': '60.205.203.175:139'}
-# proxy_support = urllib2.ProxyHandler(proxy)
-# opener = urllib2.build_opener(proxy_support)
-# urllib2.install_opener(opener)
+proxy = {'http': '101.234.76.118:16816'}
+proxy_support = urllib2.ProxyHandler(proxy)
+opener = urllib2.build_opener(proxy_support)
+
+proxy2 = {'http': '115.28.150.197:16816'}
+proxy_support2 = urllib2.ProxyHandler(proxy2)
+opener2 = urllib2.build_opener(proxy_support2)
+
+proxy3 = {'http': '121.42.140.113:16816'}
+proxy_support3 = urllib2.ProxyHandler(proxy3)
+opener3 = urllib2.build_opener(proxy_support3)
+
+urllib2.install_opener(opener2)
+openerIndex=3
+
+done=0
 
 
 #Some User Agents
@@ -86,7 +98,7 @@ def gen_chengjiao_insert_command(info_dict,conn):
     """
     生成成交记录数据库插入命令
     """
-    info_list=[u'编号',u'链接',u'房子名称',u'签约时间',u'签约单价',u'签约总价',u'基本信息1',u'基本信息2',u'基本信息3',u'小区编号']
+    info_list=[u'编号',u'链接',u'房子名称',u'签约时间',u'签约单价',u'签约总价',u'基本信息1',u'基本信息2',u'基本信息3',u'小区编号',u'regionb',u'regions']
     t=[]
     for il in info_list:
         if il in info_dict:
@@ -98,7 +110,7 @@ def gen_chengjiao_insert_command(info_dict,conn):
     # cursor.execute('select * from chengjiao where bianhao = (%s)', (info_dict[u'编号'],))
     # values = cursor.fetchall()
     # if len(values) == 0:
-    command = "insert into chengjiao (bianhao,href,housename,sign_time,unit_price,total_price,info1,info2,info3,xiaoqubianhao) values ('%s','%s','%s','%s',%s,%s,'%s','%s','%s','%s')" % t
+    command = "insert into chengjiao (bianhao,href,housename,sign_time,unit_price,total_price,info1,info2,info3,xiaoqubianhao,regionb,regions) values ('%s','%s','%s','%s',%s,%s,'%s','%s','%s','%s','%s','%s')" % t
     #print command
     cursor.execute(command)
     conn.commit()
@@ -193,14 +205,14 @@ def do_xiaoqu_spider(db_xq,region=u"昌平"):
     print u"爬下了 %s 区全部的小区信息" % region
 
 
-def chengjiao_spider(db_cj,url_page=u"http://bj.lianjia.com/chengjiao/pg1rs%E5%86%A0%E5%BA%AD%E5%9B%AD",xiaoqubianhao=u'1110138869312539'):
+def chengjiao_spider(db_cj,url_page=u"http://bj.lianjia.com/chengjiao/pg1rs%E5%86%A0%E5%BA%AD%E5%9B%AD",xiaoqubianhao=u'1110138869312539', regionb=u'朝阳', regions=u'朝阳'):
     """
     爬取页面链接中的成交记录
     """
     try:
         req = urllib2.Request(url_page,headers=hds[random.randint(0,len(hds)-1)])
         source_code = urllib2.urlopen(req,timeout=10).read()
-        plain_text=unicode(source_code)#,errors='ignore')   
+        plain_text=unicode(source_code)#,errors='ignore')
         soup = BeautifulSoup(plain_text,'lxml')
     except (urllib2.HTTPError, urllib2.URLError), e:
         print e
@@ -210,6 +222,22 @@ def chengjiao_spider(db_cj,url_page=u"http://bj.lianjia.com/chengjiao/pg1rs%E5%8
         print e
         exception_write('chengjiao_spider',url_page)
         return
+
+    authType = soup.find('p', {'id': 'authType'})
+    if authType:
+        print u'链家网流量异常, 停止抓取'
+        return False
+
+    content = soup.find('div', {'class': 'page-box house-lst-page-box'})
+    total_pages = 0
+    if content:
+        d = "d=" + content.get('page-data')
+        exec (d)
+        total_pages = d['totalPage']
+
+    if total_pages == 0:
+        xiaoqu_chengjiao_done(db_cj, xiaoqubianhao)
+        return True
     
     cj_list=soup.findAll('div',{'class':'info'})
     for cj in cj_list:
@@ -229,11 +257,23 @@ def chengjiao_spider(db_cj,url_page=u"http://bj.lianjia.com/chengjiao/pg1rs%E5%8
         info_dict.update({u'链接': url})
         info_dict.update({u'小区编号': xiaoqubianhao})
 
+        dealDate = cj.find("div", {"class": "dealDate"})  # html
+        if dealDate == None:
+            continue
+        info_dict.update({u'签约时间': dealDate.get_text().strip()})
+
+        if dealDate.get_text().strip() < '2017.01.06':
+            # print u"房子名称 %s %s" % (title.get_text().strip(), dealDate.get_text().strip())
+            xiaoqu_chengjiao_done(db_cj, xiaoqubianhao)
+            return True
+
         cursor = conn.cursor()
         cursor.execute('select * from chengjiao where bianhao = (%s)', (bianhao[0],))
         values = cursor.fetchall()
         if len(values) != 0:
-            return False
+            continue
+
+        print u"房子名称 %s %s" % (title.get_text().strip(), dealDate.get_text().strip())
 
         totalPrice = cj.find("div", {"class": "totalPrice"})  # html
         if totalPrice == None:
@@ -266,20 +306,26 @@ def chengjiao_spider(db_cj,url_page=u"http://bj.lianjia.com/chengjiao/pg1rs%E5%8
             continue
         info_dict.update({u'基本信息3': dealHouseInfo.get_text().strip()})
 
-        dealDate = cj.find("div", {"class": "dealDate"})  # html
-        if dealDate == None:
-            continue
-        info_dict.update({u'签约时间': dealDate.get_text().strip()})
+
+        info_dict.update({u'regionb': regionb})
+        info_dict.update({u'regions': regions})
 
         print u"房子名称 %s" % title.get_text().strip()
         print u"编号 %s" % bianhao
         print u"房源URL %s" % url
         gen_chengjiao_insert_command(info_dict, db_cj)
 
+    xiaoqu_chengjiao_done(db_cj, xiaoqubianhao)
     return True
 
+def xiaoqu_chengjiao_done(db_cj, bianhao):
+    cursor = db_cj.cursor()
+    cursor.execute("update xiaoqu set baseinfo = '0' where bianhao = (%s)", (bianhao,))
+    db_cj.commit()
+    cursor.close()
 
-def xiaoqu_chengjiao_spider(db_cj,xq_name=u"冠庭园", bianhao=u'1111027374674'):
+
+def xiaoqu_chengjiao_spider(db_cj,xq_name=u"冠庭园", bianhao=u'1111027374674', regionb=u'朝阳', regions=u'朝阳'):
     """
     爬取小区成交记录
     """
@@ -305,10 +351,12 @@ def xiaoqu_chengjiao_spider(db_cj,xq_name=u"冠庭园", bianhao=u'1111027374674'
         exec(d)
         total_pages=d['totalPage']
 
+    print 'spidering %s 小区 %d' % (xq_name, total_pages)
+
     for i in range(total_pages):
         url_page=u"http://bj.lianjia.com/chengjiao/pg%dc%s/" % (i+1,urllib2.quote(bianhao))
-        #print url_page
-        result = chengjiao_spider(db_cj,url_page,bianhao)
+        time.sleep(2)
+        result = chengjiao_spider(db_cj,url_page,bianhao,regionb,regions)
         if result:
             continue
         else:
@@ -324,34 +372,14 @@ def beijing_chengjiao_spider(db_cj):
     """
     爬取最新成交记录
     """
-    url=u"http://bj.lianjia.com/chengjiao"
-    print url
-    try:
-        req = urllib2.Request(url,headers=hds[random.randint(0,len(hds)-1)])
-        source_code = urllib2.urlopen(req,timeout=20).read()
-        plain_text=unicode(source_code)#,errors='ignore')
-        soup = BeautifulSoup(plain_text,'lxml')
-    except (urllib2.HTTPError, urllib2.URLError), e:
-        print e
-        return
-    except Exception,e:
-        print e
-        return
-
-    content=soup.find('div',{'class':'page-box house-lst-page-box'})
-    total_pages=0
-    if content:
-        d="d="+content.get('page-data')
-        print content.get('page-data')
-        exec(d)
-        total_pages=d['totalPage']
-
+    total_pages = 100
     print total_pages
     for i in range(total_pages):
+        if i < done:
+            continue
         url_page=u"http://bj.lianjia.com/chengjiao/pg%d/" % (i+1)
-        # print url_page
+        time.sleep(2)
         result = zengliang_chengjiao_spider(db_cj,url_page)
-        time.sleep(3)
         if result:
             continue
         else:
@@ -400,12 +428,14 @@ def zengliang_chengjiao_spider(db_cj, url_page=u"http://bj.lianjia.com/chengjiao
         cursor = conn.cursor()
         xiaoquName = title.get_text().strip().split(" ", 1)[0];
         #print  xiaoquName;
-        cursor.execute("select bianhao from xiaoqu where xiaoquname = (%s)", (xiaoquName,))
+        cursor.execute("select bianhao,regionb,regions from xiaoqu where xiaoquname = (%s)", (xiaoquName,))
         values = cursor.fetchall()
         if len(values) != 0:
             xiaoqubianhao = values[0][0];
             info_dict.update({u'小区编号': xiaoqubianhao})
-            #print xiaoqubianhao;
+            info_dict.update({u'regionb': values[0][1]})
+            info_dict.update({u'regions': values[0][2]})
+            # print xiaoqubianhao;
         else:
             print u"%s 小区不存在" % houseTitle;
             continue
@@ -472,10 +502,41 @@ def do_xiaoqu_chengjiao_spider(db_xq,db_cj):
     cursor.execute('select * from xiaoqu ')
     xq_list = cursor.fetchall()
     for xq in xq_list:
-        print 'spidering %s 小区' % xq[1]
-        xiaoqu_chengjiao_spider(db_cj,xq[1],xq[0])
+        xiaoqu_chengjiao_spider(db_cj,xq[1],xq[0],xq[2],xq[3])
+        time.sleep(3)
         count+=1
     print 'have spidered %d xiaoqu' % count
+    print 'done'
+
+def do_xiaoqu_chengjiao_again_spider(db_xq,db_cj):
+    global openerIndex
+    """
+    批量爬取小区成交记录
+    """
+    count=0
+    cursor = db_xq.cursor()
+    cursor.execute('select * from xiaoqu where baseinfo =""')
+    xq_list = cursor.fetchall()
+    for xq in xq_list:
+        time.sleep(2)
+        url = u"http://bj.lianjia.com/chengjiao/c" + urllib2.quote(xq[0]) + "/"
+        # xiaoqu_chengjiao_spider(db_cj,xq[1],xq[0],xq[2],xq[3])
+        result = chengjiao_spider(db_cj, url, xq[0],xq[2],xq[3])
+        if result:
+            count+=1
+            print 'have spidered %d xiaoqu, the latest is: %s %s %s' % (count,xq[0],xq[1],xq[4])
+            if count % 50 == 0:
+                print '休眠5分钟, 切换代理'
+                if openerIndex == 1:
+                    urllib2.install_opener(opener2)
+                    openerIndex = 2
+                else:
+                    urllib2.install_opener(opener)
+                    openerIndex = 1
+
+                # time.sleep(300)
+        else:
+            return
     print 'done'
 
 def do_batch_detail_chengjiao_spider(db_xq):
@@ -603,9 +664,12 @@ if __name__=="__main__":
     #
     #
     # #有了第一步和第二部的基础数据, 日常只需增量爬最新100页成交
-    beijing_chengjiao_spider(conn)
+    # beijing_chengjiao_spider(conn)
 
     # do_batch_detail_chengjiao_spider(conn);
+
+    #长期没抓取, 补缺抓取
+    do_xiaoqu_chengjiao_again_spider(conn, conn)
 
     # zengliang_chengjiao_spider(conn, u'http://bj.lianjia.com/chengjiao/pg14/');
     # zengliang_chengjiao_spider(conn, u'http://bj.lianjia.com/chengjiao/pg32/');
