@@ -1,5 +1,6 @@
 import urllib2
 from bs4 import BeautifulSoup
+import json
 
 headers = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -21,17 +22,29 @@ def url_user_agent(url):
     # opener = urllib2.build_opener(proxy_support,urllib2.HTTPHandler(debuglevel=1))
     opener = urllib2.build_opener(proxy_support)
     opener.add_handler = [('User-Agent','Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.101 Safari/537.36')]
-    urllib2.install_opener(opener)
+    # urllib2.install_opener(opener)
 
     # i_headers = {'User-Agent':'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.1.6) Gecko/20091201 Firefox/3.5.6'}
     i_headers = {'User-Agent':'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
     req = urllib2.Request(url,headers=i_headers)
     html = urllib2.urlopen(req)
     plain_text = unicode(html)
+    print plain_text
     soup = BeautifulSoup(plain_text, 'lxml')
     print soup
     return
 
-url = 'http://bj.lianjia.com/chengjiao'
-doc = url_user_agent(url)
-print doc
+def get_json_data(url):
+    try:
+        data = urllib2.urlopen(url).read()
+        return data
+    except Exception, e:
+        print e
+
+
+url = 'http://dev.kuaidaili.com/api/getproxy/?orderid=928618036841666&num=20&b_pcchrome=1&b_pcie=1&b_pcff=1&protocol=1&method=2&an_an=1&an_ha=1&sp1=1&sp2=1&dedup=1&format=json&sep=1'
+jsonData = get_json_data(url)
+value = json.loads(jsonData)
+print value['data']['proxy_list']
+proxy = {'http': value['data']['proxy_list'][0]}
+print proxy

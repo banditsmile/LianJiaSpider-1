@@ -13,20 +13,41 @@ reload(sys)
 sys.setdefaultencoding("utf-8")
 
 #设置代理, 让反爬虫策略失效
-proxy = {'http': '101.234.76.118:16816'}
-proxy_support = urllib2.ProxyHandler(proxy)
-opener = urllib2.build_opener(proxy_support)
+proxy1 = {'http': '115.29.38.207:16816'}
+proxy_support1 = urllib2.ProxyHandler(proxy1)
+opener1 = urllib2.build_opener(proxy_support1)
 
-proxy2 = {'http': '115.28.150.197:16816'}
+proxy2 = {'http': '101.203.173.104:16816'}
 proxy_support2 = urllib2.ProxyHandler(proxy2)
 opener2 = urllib2.build_opener(proxy_support2)
 
-proxy3 = {'http': '121.42.140.113:16816'}
+proxy3 = {'http': '42.123.91.247:16816'}
 proxy_support3 = urllib2.ProxyHandler(proxy3)
 opener3 = urllib2.build_opener(proxy_support3)
 
-urllib2.install_opener(opener2)
-openerIndex=3
+proxy4 = {'http': '118.123.22.209:16816'}
+proxy_support4 = urllib2.ProxyHandler(proxy4)
+opener4 = urllib2.build_opener(proxy_support4)
+
+proxy5 = {'http': '27.54.242.222:16816'}
+proxy_support5 = urllib2.ProxyHandler(proxy5)
+opener5 = urllib2.build_opener(proxy_support5)
+
+proxy6 = {'http': '115.28.150.197:16816'}
+proxy_support6 = urllib2.ProxyHandler(proxy6)
+opener6 = urllib2.build_opener(proxy_support6)
+
+proxys= [
+{'http': '115.29.38.207:16816'},
+{'http': '101.203.173.104:16816'},
+{'http': '42.123.91.247:16816'},
+{'http': '118.123.22.209:16816'},
+{'http': '27.54.242.222:16816'},
+{'http': '115.28.150.197:16816'}
+]
+
+urllib2.install_opener(opener6)
+openerIndex=0
 
 done=0
 
@@ -68,6 +89,11 @@ regions=[u"东城",u"西城",u"朝阳",u"海淀",u"丰台",u"石景山",u"通州
 
 
 lock = threading.Lock()
+
+def setProxy(index):
+    proxy_support = urllib2.ProxyHandler(proxys[index])
+    opener = urllib2.build_opener(proxy_support)
+    urllib2.install_opener(opener)
 
 
 def gen_xiaoqu_insert_command(info_dict, conn):
@@ -509,7 +535,6 @@ def do_xiaoqu_chengjiao_spider(db_xq,db_cj):
     print 'done'
 
 def do_xiaoqu_chengjiao_again_spider(db_xq,db_cj):
-    global openerIndex
     """
     批量爬取小区成交记录
     """
@@ -518,23 +543,16 @@ def do_xiaoqu_chengjiao_again_spider(db_xq,db_cj):
     cursor.execute('select * from xiaoqu where baseinfo =""')
     xq_list = cursor.fetchall()
     for xq in xq_list:
-        time.sleep(2)
+        time.sleep(1)
         url = u"http://bj.lianjia.com/chengjiao/c" + urllib2.quote(xq[0]) + "/"
         # xiaoqu_chengjiao_spider(db_cj,xq[1],xq[0],xq[2],xq[3])
         result = chengjiao_spider(db_cj, url, xq[0],xq[2],xq[3])
         if result:
             count+=1
-            print 'have spidered %d xiaoqu, the latest is: %s %s %s' % (count,xq[0],xq[1],xq[4])
-            if count % 50 == 0:
-                print '休眠5分钟, 切换代理'
-                if openerIndex == 1:
-                    urllib2.install_opener(opener2)
-                    openerIndex = 2
-                else:
-                    urllib2.install_opener(opener)
-                    openerIndex = 1
+            index = count % len(proxys)
+            setProxy(index)
+            print 'have spidered %d xiaoqu, the latest is: %s %s %s %d' % (count,xq[0],xq[1],xq[4],index)
 
-                # time.sleep(300)
         else:
             return
     print 'done'
