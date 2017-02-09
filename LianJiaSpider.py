@@ -119,6 +119,18 @@ def gen_chengjiao_insert_command(info_dict,conn):
     conn.commit()
     cursor.close()
 
+def add_total_region_command(conn, sign_time, regionb, price):
+    cursor = conn.cursor()
+    cursor.execute('select total from region_report where sign_time = (%s) and region= (%s)', (sign_time,regionb))
+    values = cursor.fetchall()
+    if len(values) == 0:
+        command = "insert into region_report values ('%s','%s',%s,%s)" % (sign_time,regionb,1,price)
+    else:
+        command = "update region_report set total=total+1, aggregateacount=aggregateacount+%s where sign_time = '%s' and region= '%s'" % (price, sign_time, regionb)
+    # print command
+    cursor.execute(command)
+    conn.commit()
+    cursor.close()
 
 def xiaoqu_spider(db_xq,url_page=u"http://bj.lianjia.com/xiaoqu/pg1rs%E6%98%8C%E5%B9%B3/"):
     """
@@ -381,7 +393,7 @@ def beijing_chengjiao_spider(db_cj):
         if i < done:
             continue
         url_page=u"http://bj.lianjia.com/chengjiao/pg%d/" % (i+1)
-        time.sleep(2)
+        time.sleep(3)
         result = zengliang_chengjiao_spider(db_cj,url_page)
         if result:
             continue
@@ -430,6 +442,7 @@ def zengliang_chengjiao_spider(db_cj, url_page=u"http://bj.lianjia.com/chengjiao
 
         cursor = conn.cursor()
         xiaoquName = title.get_text().strip().split(" ", 1)[0];
+        regionb = ''
         #print  xiaoquName;
         cursor.execute("select bianhao,regionb,regions from xiaoqu where xiaoquname = (%s)", (xiaoquName,))
         values = cursor.fetchall()
@@ -437,6 +450,7 @@ def zengliang_chengjiao_spider(db_cj, url_page=u"http://bj.lianjia.com/chengjiao
             xiaoqubianhao = values[0][0];
             info_dict.update({u'小区编号': xiaoqubianhao})
             info_dict.update({u'regionb': values[0][1]})
+            regionb = values[0][1]
             info_dict.update({u'regions': values[0][2]})
             # print xiaoqubianhao;
         else:
@@ -460,6 +474,7 @@ def zengliang_chengjiao_spider(db_cj, url_page=u"http://bj.lianjia.com/chengjiao
             continue
         info_dict.update({u'签约总价': totalPrice1.get_text().strip()})
 
+
         unitPrice = cj.find("div", {"class": "unitPrice"})  # html
         if unitPrice == None:
             continue
@@ -467,6 +482,7 @@ def zengliang_chengjiao_spider(db_cj, url_page=u"http://bj.lianjia.com/chengjiao
         if unitPrice1 == None:
             continue
         info_dict.update({u'签约单价': unitPrice1.get_text().strip()})
+        unitPriceNum = unitPrice1.get_text().strip()
 
         houseinfo = cj.find("div", {"class": "houseInfo"})  # html
         if houseinfo == None:
@@ -487,11 +503,13 @@ def zengliang_chengjiao_spider(db_cj, url_page=u"http://bj.lianjia.com/chengjiao
         if dealDate == None:
             continue
         info_dict.update({u'签约时间': dealDate.get_text().strip()})
+        sign_time = dealDate.get_text().strip()
 
         # print u"房子名称 %s" % title.get_text().strip()
         # print u"编号 %s" % bianhao
         # print u"房源URL %s" % url
         gen_chengjiao_insert_command(info_dict, db_cj)
+        add_total_region_command(conn, sign_time, regionb, unitPriceNum)
 
     print u"%s 处理了 %d 套成交房源, 新房源: %d套" % (url_page,count,newCount)
     return True
