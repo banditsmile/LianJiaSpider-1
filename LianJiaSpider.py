@@ -22,7 +22,7 @@ None,
 # {'http': '42.123.91.247:16816'},
 # {'http': '118.123.22.209:16816'},
 # {'http': '27.54.242.222:16816'},
-{'http': '115.28.150.197:16816'}
+{'http': '103.35.171.97:8080'}
 ]
 openerIndex=0
 
@@ -72,7 +72,7 @@ def setProxy(index):
     opener = urllib2.build_opener(proxy_support)
     urllib2.install_opener(opener)
 
-setProxy(0)
+# setProxy(1)
 def gen_xiaoqu_insert_command(info_dict, conn):
     """
     生成小区数据库插入命令
@@ -114,7 +114,7 @@ def gen_chengjiao_insert_command(info_dict,conn):
     # values = cursor.fetchall()
     # if len(values) == 0:
     command = "insert into chengjiao (bianhao,href,housename,sign_time,unit_price,total_price,info1,info2,info3,xiaoqubianhao,regionb,regions) values ('%s','%s','%s','%s',%s,%s,'%s','%s','%s','%s','%s','%s')" % t
-    #print command
+    # print command
     cursor.execute(command)
     conn.commit()
     cursor.close()
@@ -388,13 +388,13 @@ def beijing_chengjiao_spider(db_cj):
     爬取最新成交记录
     """
     total_pages = 100
-    print total_pages
     for i in range(total_pages):
         if i < done:
             continue
         url_page=u"http://bj.lianjia.com/chengjiao/pg%d/" % (i+1)
-        time.sleep(3)
+
         result = zengliang_chengjiao_spider(db_cj,url_page)
+        time.sleep(5)
         if result:
             continue
         else:
@@ -431,6 +431,7 @@ def zengliang_chengjiao_spider(db_cj, url_page=u"http://bj.lianjia.com/chengjiao
         houseTitle = title.get_text().strip()
         info_dict.update({u'房子名称': title.get_text().strip()})
         if title.a == None:
+            print title.get_text().strip()
             continue
         url = title.a.get('href');
         if url == None:
@@ -443,7 +444,7 @@ def zengliang_chengjiao_spider(db_cj, url_page=u"http://bj.lianjia.com/chengjiao
         cursor = conn.cursor()
         xiaoquName = title.get_text().strip().split(" ", 1)[0];
         regionb = ''
-        #print  xiaoquName;
+        # print  bianhao[0];
         cursor.execute("select bianhao,regionb,regions from xiaoqu where xiaoquname = (%s)", (xiaoquName,))
         values = cursor.fetchall()
         if len(values) != 0:
@@ -486,18 +487,21 @@ def zengliang_chengjiao_spider(db_cj, url_page=u"http://bj.lianjia.com/chengjiao
 
         houseinfo = cj.find("div", {"class": "houseInfo"})  # html
         if houseinfo == None:
-            continue
-        info_dict.update({u'基本信息1': houseinfo.get_text().strip()})
+            info_dict.update({u'基本信息1': u''})
+        else:
+            info_dict.update({u'基本信息1': houseinfo.get_text().strip()})
 
         positionInfo = cj.find("div", {"class": "positionInfo"})  # html
         if positionInfo == None:
-            continue
-        info_dict.update({u'基本信息2': positionInfo.get_text().strip()})
+            info_dict.update({u'基本信息2': u''})
+        else:
+            info_dict.update({u'基本信息2': positionInfo.get_text().strip()})
 
         dealHouseInfo = cj.find("div", {"class": "dealHouseInfo"})  # html
         if dealHouseInfo == None:
-            continue
-        info_dict.update({u'基本信息3': dealHouseInfo.get_text().strip()})
+            info_dict.update({u'基本信息3': u''})
+        else:
+            info_dict.update({u'基本信息3': dealHouseInfo.get_text().strip()})
 
         dealDate = cj.find("div", {"class": "dealDate"})  # html
         if dealDate == None:
@@ -641,7 +645,7 @@ def exception_spider(db_cj):
 #=========================setup a database, only execute in 1st running=================================
 def database_init(dbflag='local'):
      if dbflag=='local':
-         conn = mysql.connector.connect(user='root', password='root', database='jeesite',host='localhost')
+         conn = mysql.connector.connect(user='root', password='root', database='jeesite1',host='localhost')
      else:
          conn = mysql.connector.connect(user='qdm', password='password', database='qdm',host='qdm.my3w.com')
      dbc = conn.cursor()
@@ -683,7 +687,7 @@ if __name__=="__main__":
     #长期没抓取, 补缺抓取
     # do_xiaoqu_chengjiao_again_spider(conn, conn)
 
-    # zengliang_chengjiao_spider(conn, u'http://bj.lianjia.com/chengjiao/pg14/');
+    # zengliang_chengjiao_spider(conn, u'http://bj.lianjia.com/chengjiao/pg36/');
     # zengliang_chengjiao_spider(conn, u'http://bj.lianjia.com/chengjiao/pg32/');
     # zengliang_chengjiao_spider(conn, u'http://bj.lianjia.com/chengjiao/pg38/');
     # zengliang_chengjiao_spider(conn, u'http://bj.lianjia.com/chengjiao/pg39/');
@@ -691,4 +695,8 @@ if __name__=="__main__":
     
     #重新爬取爬取异常的链接
     # exception_spider(conn)
+
+    str = input("Enter your input: ")
+    print "Received input is : ", str
+
 
